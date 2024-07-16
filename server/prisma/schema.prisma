@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+// model User {
+ 
+//   files       File[]
+//   folders     Folder[]
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+// }
+
+// model User {
+//    id String @id @default(cuid())
+//   name String
+//   email       String   @unique
+//   password    String
+//   ownedFiles  File[]   @relation("FileOwner")
+//   ownedFolders Folder[] @relation("FolderOwner")
+//   accessibleFiles File[] @relation("FileAccess")
+//   accessibleFolders Folder[] @relation("FolderAccess")
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+// }
+
+// model Folder {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   randomString String  @unique
+//   ownerId     Int
+//   owner       User     @relation("FolderOwner", fields: [ownerId], references: [id])
+//   allowedAccess User[] @relation("FolderAccess")
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+// }
+
+// model File {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   path        String
+//   favourite   Boolean  @default(false)
+//   deleted     Boolean  @default(false)
+//   ownerId     Int
+//   owner       User     @relation("FileOwner", fields: [ownerId], references: [email])
+//   allowedAccess User[] @relation("FileAccess")
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+// }
+
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String
+  name String
+  ownedFiles        File[]    @relation("FileOwner")
+  ownedFolders      Folder[]  @relation("FolderOwner")
+  accessibleFiles   FileAccess[]
+  accessibleFolders FolderAccess[]
+  accounts          Account[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Folder {
+  id            Int            @id @default(autoincrement())
+  name          String
+  randomString  String          @unique
+  ownerId       String
+  deleted       Boolean?    @default(false)
+  owner         User            @relation("FolderOwner", fields: [ownerId], references: [id])
+  allowedAccess FolderAccess[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model File {
+  id            Int           @id @default(autoincrement())
+  name          String
+  path          String
+  favourite     Boolean       @default(false)
+  deleted       Boolean       @default(false)
+  ownerId       String
+  owner         User          @relation("FileOwner", fields: [ownerId], references: [id])
+  allowedAccess FileAccess[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Account {
+  id        Int      @id @default(autoincrement())
+  email     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FolderAccess {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  folderId  Int
+  user      User     @relation(fields: [userId], references: [id])
+  folder    Folder   @relation(fields: [folderId], references: [id])
+}
+
+model FileAccess {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  fileId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  file      File     @relation(fields: [fileId], references: [id])
+}
