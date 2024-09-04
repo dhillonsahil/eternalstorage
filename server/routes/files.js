@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
-const fs = require('fs')
+const fs = require('fs').promises;
 const prisma = new PrismaClient();
 const path = require('path')
 
@@ -151,61 +151,114 @@ router.patch('/restore/:fileId', async (req, res) => {
     }
 });
 
-router.get('/download/:fileId', async (req, res) => {
-    try {
-      const { user } = req;
-      const fileId = parseInt(req.params.fileId, 10);
+// router.get('/download/:fileId', async (req, res) => {
+//     try {
+//       const { user } = req;
+//       const fileId = parseInt(req.params.fileId, 10);
   
-      if (!fileId) return res.status(400).send({ success: false, message: "File Not Found" });
+//       if (!fileId) return res.status(400).send({ success: false, message: "File Not Found" });
   
-      // Check if file exists and user owns it
-      const file = await prisma.file.findFirst({
-        where: {
-          id: fileId,
-          OR: [
-            { ownerId: user.id },
-            {
-              allowedAccess: {
-                some: {
-                  userId: user.id
-                }
-              }
-            }
-          ]
-        },
-      });
+//       // Check if file exists and user owns it
+//       const file = await prisma.file.findFirst({
+//         where: {
+//           id: fileId,
+//           OR: [
+//             { ownerId: user.id },
+//             {
+//               allowedAccess: {
+//                 some: {
+//                   userId: user.id
+//                 }
+//               }
+//             }
+//           ]
+//         },
+//       });
   
-      if (!file) return res.status(400).json({ success: false, message: "No file found " });
+//       if (!file) return res.status(400).json({ success: false, message: "No file found " });
   
-    //   const filePath = path.resolve(file.path); // Ensure the file path is absolute
+//     //   const filePath = path.resolve(file.path); // Ensure the file path is absolute
   
-       // Ensure the file path is absolute
-       const filePath = path.resolve(file.path); 
-       const normalizedFilePath = path.normalize(filePath);
+//        // Ensure the file path is absolute
+//        const filePath = path.resolve(file.path); 
+//        const normalizedFilePath = path.normalize(filePath);
    
-       console.log("Resolved file path:", normalizedFilePath);
-      console.log(filePath)
-      // Check if the file exists in the filesystem
-      try {
-        await fs.accessSync(normalizedFilePath);
-      } catch (err) {
-        console.error("File access error:", err);
-        return res.status(404).json({ success: false, message: "File not found on server" });
-      }
+//        console.log("Resolved file path:", normalizedFilePath);
+//       console.log(filePath)
+//       // Check if the file exists in the filesystem
+//       try {
+//         await fs.accessSync(normalizedFilePath);
+//       } catch (err) {
+//         console.error("File access error:", err);
+//         return res.status(404).json({ success: false, message: "File not found on server" });
+//       }
   
-  console.log("Done")
-      // Send the file to the client for download
-      res.download(normalizedFilePath, file.name, (err) => {
-        if (err) {
-          console.error('Error sending file:', err);
-          return res.status(500).json({ success: false, message: "Failed to download file" });
-        }
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({ success: false, message: "Something went wrong" });
+//   console.log("Done")
+//       // Send the file to the client for download
+//       res.download(normalizedFilePath, file.name, (err) => {
+//         if (err) {
+//           console.error('Error sending file:', err);
+//           return res.status(500).json({ success: false, message: "Failed to download file" });
+//         }
+//       });
+//     } catch (error) {
+//       console.error('Error:', error);
+//       return res.status(500).json({ success: false, message: "Something went wrong" });
+//     }
+//   });
+
+router.get('/download/:fileId', async (req, res) => {
+  try {
+    const { user } = req;
+    const fileId = parseInt(req.params.fileId, 10);
+
+    if (isNaN(fileId)) {
+      return res.status(400).json({ success: false, message: 'Invalid file ID' });
     }
-  });
+
+    const file = await prisma.file.findFirst({
+      where: {
+        id: fileId,
+        OR: [
+          { ownerId: user.id },
+          {
+            allowedAccess: {
+              some: { userId: user.id }
+            }
+          }
+        ]
+      }
+    });
+
+    if (!file) {
+      return res.status(404).json({ success: false, message: 'File not found or access denied' });
+    }
+
+    const filePath = path.resolve(file.path);
+    const normalizedFilePath = path.normalize(filePath);
+
+    try {
+      await fs.access(normalizedFilePath);
+    } catch (err) {
+      console.error('File access error:', err);
+      return res.status(404).json({ success: false, message: 'File not found on server' });
+    }
+
+    const encryptedData = await fs.readFile(normalizedFilePath);
+    const ivArray = file.iv.split(',').map(Number); // Convert to array of numbers
+    const iv = new Uint8Array(ivArray);
+
+    res.status(200).json({
+      success: true,
+      fileName: file.name,
+      encryptedData: Array.from(new Uint8Array(encryptedData)), // Convert to array for JSON serialization
+      iv: Array.from(iv) // Convert to array for JSON serialization
+    });
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
 
   router.post('/allowAccess', async (req, res) => {
     try {

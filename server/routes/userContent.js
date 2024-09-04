@@ -171,36 +171,92 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// router.post('/upload/:rootFolder', upload.single('file'), async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const rootFolder = req.params.rootFolder; // Extract rootFolder from req.params
+//     console.log("Root Folder:", rootFolder); // Debug log
+//     if (!req.file) {
+//       return res.status(400).json({ message: 'No file uploaded' });
+//     }
+
+//     const uploadedFile = req.file; // Contains details like filename, path, etc.
+
+//     await prisma.file.create({
+//       data: {
+//         ownerId: userId,
+//         name: uploadedFile.originalname, // Filename before upload
+//         path: uploadedFile.path, // Temporary path (adjust if needed)
+//         // owner: { connect: { id: userId } },
+//         createdAt: new Date(),
+//         updatedAt: new Date(),
+//       },
+//     });
+
+//     res.status(200).json({success:true, message: 'File uploaded successfully' });
+//   } catch (error) {
+//     console.error('Error uploading file:', error);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
 router.post('/upload/:rootFolder', upload.single('file'), async (req, res) => {
   try {
     const userId = req.user.id;
-    const rootFolder = req.params.rootFolder; // Extract rootFolder from req.params
-    console.log("Root Folder:", rootFolder); // Debug log
+    const rootFolder = req.params.rootFolder;
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const uploadedFile = req.file; // Contains details like filename, path, etc.
+    const uploadedFile = req.file;
+    const iv = JSON.parse(req.body.iv); // Parse the IV from the request body
 
+    // Store the encrypted file details in the database
     await prisma.file.create({
       data: {
         ownerId: userId,
-        name: uploadedFile.originalname, // Filename before upload
-        path: uploadedFile.path, // Temporary path (adjust if needed)
-        // owner: { connect: { id: userId } },
+        name: req.body.fileName, // Original filename
+        path: uploadedFile.path, // Encrypted file path
+        iv: iv.join(','), // Store IV as a string
         createdAt: new Date(),
         updatedAt: new Date(),
       },
     });
 
-    res.status(200).json({success:true, message: 'File uploaded successfully' });
+    res.status(200).json({ success: true, message: 'File uploaded successfully' });
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
+
 // Route to get all folders and files for the authenticated user
+// router.get('/', async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+
+//     // Fetch all folders belonging to the user
+//     const folders = await prisma.folder.findMany({
+//       where: { ownerId: userId },
+//       include: {
+//         allowedAccess: true, // Include users who have access to this folder
+//       },
+//     });
+
+//     // Fetch all files belonging to the user
+//     const files = await prisma.file.findMany({
+//       where: { ownerId: userId },
+//       include: {
+//         allowedAccess: true, // Include users who have access to this file
+//       },
+//     });
+
+//     res.status(200).json({ success: true, folders, files });
+//   } catch (error) {
+//     console.error('Error fetching user content:', error);
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
 router.get('/', async (req, res) => {
   try {
     const userId = req.user.id;
@@ -221,12 +277,21 @@ router.get('/', async (req, res) => {
       },
     });
 
-    res.status(200).json({ success: true, folders, files });
+    // Map through files to include encryption details
+    const filesWithEncryptionDetails = files.map(file => ({
+      ...file,
+      iv: file.iv, // Initialization vector (IV) from the file object
+      key: process.env.FILE_ENCRYPTION_KEY, // Key to decrypt the file (this should be handled securely)
+      algorithm: 'aes-256-cbc' // Encryption algorithm used
+    }));
+
+    res.status(200).json({ success: true, folders, files: filesWithEncryptionDetails });
   } catch (error) {
     console.error('Error fetching user content:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
 
 router.get('/getSharedData',async(req,res)=>{
   try {

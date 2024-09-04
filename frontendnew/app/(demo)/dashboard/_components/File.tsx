@@ -93,6 +93,40 @@ const Files = ({ name, path, id, favourite, deleted }:{name:string,path:string,i
         }
     };
 
+    // const handleDownload = async () => {
+    //     try {
+    //         const response = await fetch(`${process.env.SEVER_HOST}api/files/download/${id}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'Authorization': `Bearer ${token}`
+    //             },
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error('Network response was not ok');
+    //         }
+
+    //         const blob = await response.blob();
+    //         const url = window.URL.createObjectURL(blob);
+    //         const link = document.createElement('a');
+    //         link.href = url;
+
+    //         const contentDisposition = response.headers.get('content-disposition');
+    //         let filename = name;
+    //         if (contentDisposition && contentDisposition.includes('filename=')) {
+    //             filename = contentDisposition.split('filename=')[1].trim();
+    //         }
+    //         link.setAttribute('download', filename);
+
+    //         document.body.appendChild(link);
+    //         link.click();
+    //         link.remove();
+    //     } catch (error) {
+    //         console.error('Error downloading file:', error);
+    //     }
+    // };
+
     const handleDownload = async () => {
         try {
             const response = await fetch(`${process.env.SEVER_HOST}api/files/download/${id}`, {
@@ -102,30 +136,81 @@ const Files = ({ name, path, id, favourite, deleted }:{name:string,path:string,i
                     'Authorization': `Bearer ${token}`
                 },
             });
-
+    
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-
-            const blob = await response.blob();
+    
+            const data = await response.json();
+    
+            if (!data.success) {
+                throw new Error('Failed to fetch file data');
+            }
+    
+            const { fileName, encryptedData, iv } = data;
+            const encryptedArray = new Uint8Array(encryptedData);
+            const ivArray = new Uint8Array(iv);
+    
+            // Prompt user for their password
+            const password = prompt('Enter password to decrypt the file:');
+            if (!password) return;
+    
+            // Derive key from password
+            const key = await deriveKeyFromPassword(password);
+    
+            // Decrypt the file
+            const decryptedData = await decryptFile(encryptedArray, key, ivArray);
+    
+            // Create a blob and trigger download
+            const blob = new Blob([decryptedData], { type: 'application/octet-stream' });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-
-            const contentDisposition = response.headers.get('content-disposition');
-            let filename = 'downloaded_file';
-            if (contentDisposition && contentDisposition.includes('filename=')) {
-                filename = contentDisposition.split('filename=')[1].trim();
-            }
-            link.setAttribute('download', filename);
-
+            link.download = fileName;
             document.body.appendChild(link);
             link.click();
             link.remove();
         } catch (error) {
-            console.error('Error downloading file:', error);
+            console.error('Error downloading or decrypting file:', error);
         }
     };
+    
+    const decryptFile = async (encryptedData, key, iv) => {
+        return await crypto.subtle.decrypt(
+            {
+                name: 'AES-GCM',
+                iv: iv
+            },
+            key,
+            encryptedData
+        );
+    };
+    
+    const deriveKeyFromPassword = async (password) => {
+        const encoder = new TextEncoder();
+        const salt = encoder.encode("unique-salt-per-user"); // Unique salt per user
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(password),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+        );
+    
+        return await crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['decrypt']
+        );
+    };
+      
 
     return (
         <>
@@ -184,11 +269,12 @@ const Files = ({ name, path, id, favourite, deleted }:{name:string,path:string,i
                 </div>
                 <div className="w-full  h-full flex justify-center items-center">
                     <div className="text-3xl h-20">
-                        {name.split('.')[1].toLowerCase() === 'png' || name.split('.')[1].toUpperCase() === 'jpg' ?
+                        {/* {name.split('.')[1].toLowerCase() === 'png' || name.split('.')[1].toUpperCase() === 'jpg' ?
                             <img src={`${process.env.SEVER_HOST}${path}`} className="w-full h-full object-cover rounded-lg" /> :
                             <div className='text-red-400 '>
                                 {name.split('.')[1].toUpperCase()}
-                            </div>}
+                            </div>} */}
+                            {name}
                     </div>
                 </div>
             </div>

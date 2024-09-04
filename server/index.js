@@ -20,13 +20,7 @@ app.use(cookieParser())
 // Middleware to serve static files from the uploads folder
 app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
 
-
-// CORS setup
-const corsOptions = {
-  origin: 'http://localhost:3001', // Allow requests from this origin
-  optionsSuccessStatus: 200 // Some legacy browsers (e.g., IE11) may require this option
-};
-app.use(cors(corsOptions));
+app.use(cors());
 
 
 const jwtMiddleware = (req, res, next) => {

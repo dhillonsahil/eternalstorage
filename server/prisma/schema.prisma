@@ -13,91 +13,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
-// model User {
- 
-//   files       File[]
-//   folders     Folder[]
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-// }
-
-// model User {
-//    id String @id @default(cuid())
-//   name String
-//   email       String   @unique
-//   password    String
-//   ownedFiles  File[]   @relation("FileOwner")
-//   ownedFolders Folder[] @relation("FolderOwner")
-//   accessibleFiles File[] @relation("FileAccess")
-//   accessibleFolders Folder[] @relation("FolderAccess")
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-// }
-
-// model Folder {
-//   id          Int      @id @default(autoincrement())
-//   name        String
-//   randomString String  @unique
-//   ownerId     Int
-//   owner       User     @relation("FolderOwner", fields: [ownerId], references: [id])
-//   allowedAccess User[] @relation("FolderAccess")
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-// }
-
-// model File {
-//   id          Int      @id @default(autoincrement())
-//   name        String
-//   path        String
-//   favourite   Boolean  @default(false)
-//   deleted     Boolean  @default(false)
-//   ownerId     Int
-//   owner       User     @relation("FileOwner", fields: [ownerId], references: [email])
-//   allowedAccess User[] @relation("FileAccess")
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-// }
-
-
 model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
+  id                String         @id @default(uuid())
+  email             String         @unique
   password          String
-  name String
-  ownedFiles        File[]    @relation("FileOwner")
-  ownedFolders      Folder[]  @relation("FolderOwner")
+  name              String
+  ownedFiles        File[]         @relation("FileOwner")
+  ownedFolders      Folder[]       @relation("FolderOwner")
   accessibleFiles   FileAccess[]
   accessibleFolders FolderAccess[]
   accounts          Account[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 model Folder {
   id            Int            @id @default(autoincrement())
   name          String
-  randomString  String          @unique
+  randomString  String         @unique
   ownerId       String
-  deleted       Boolean?    @default(false)
-  owner         User            @relation("FolderOwner", fields: [ownerId], references: [id])
+  deleted       Boolean?       @default(false)
+  owner         User           @relation("FolderOwner", fields: [ownerId], references: [id])
   allowedAccess FolderAccess[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model File {
-  id            Int           @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   name          String
   path          String
-  favourite     Boolean       @default(false)
-  deleted       Boolean       @default(false)
+  favourite     Boolean      @default(false)
+  deleted       Boolean      @default(false)
   ownerId       String
-  owner         User          @relation("FileOwner", fields: [ownerId], references: [id])
+  owner         User         @relation("FileOwner", fields: [ownerId], references: [id])
   allowedAccess FileAccess[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  iv            String       // Initialization vector for encryption
+  // salt          String       // Salt used for deriving encryption key
+  // algorithm     String       // Algorithm used for encryption (e.g., AES-GCM)
 }
 
 model Account {
@@ -110,17 +65,17 @@ model Account {
 }
 
 model FolderAccess {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  folderId  Int
-  user      User     @relation(fields: [userId], references: [id])
-  folder    Folder   @relation(fields: [folderId], references: [id])
+  id       Int    @id @default(autoincrement())
+  userId   String
+  folderId Int
+  user     User   @relation(fields: [userId], references: [id])
+  folder   Folder @relation(fields: [folderId], references: [id])
 }
 
 model FileAccess {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  fileId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  file      File     @relation(fields: [fileId], references: [id])
+  id     Int    @id @default(autoincrement())
+  userId String
+  fileId Int
+  user   User   @relation(fields: [userId], references: [id])
+  file   File   @relation(fields: [fileId], references: [id])
 }
